@@ -6,15 +6,14 @@ This project was completed as part of the **Financial Risk Management** course. 
 
 ## Methodology
 
-- Market Equity Value Calculation
-- Equity Volatility Estimation
+- Market Value of Equity Estimation
+- Market Equity Volatility Estimation
 - Black–Scholes Option Pricing
 - Asset Value Estimation using Numerical Root Finding
 - Iterative Asset Volatility Calibration
-- Distance to Default (DD)
-- Probability of Default (PD)
-- Risk Visualization
-
+- Distance to Default (DD) Calculation
+- Probability of Default (PD) Estimation
+- Credit Risk Visualization
 ## Tools
 
 - R
