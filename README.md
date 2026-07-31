@@ -20,6 +20,6 @@ This project was completed as part of the **Financial Risk Management** course. 
 - ggplot2
 
 ## Report
-[View HTML Report] https://tranngocchau281005-byte.github.io/KMV-Credit-Risk-Model/
+[View HTML Report] 
 
 
