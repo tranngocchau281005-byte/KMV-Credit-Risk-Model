@@ -2,8 +2,7 @@
 
 ## Overview
 
-This project was completed as part of the **Financial Risk Management** course. It implements the **Moody's KMV structural credit risk model**, based on the **Merton framework**, to assess the default risk of **Hoang Anh Gia Lai Joint Stock Company (HAG)**. Using historical stock price data, the model estimates the firm's asset value and asset volatility, then calculates the **Distance to Default (DD)** and **Probability of Default (PD)**.
-
+This project was completed as part of the **Financial Risk Management** course. It implements the **Moody's KMV model** to assess the default risk of **Hoang Anh Gia Lai Joint Stock Company (HAG)** by estimating asset value, asset volatility, **Distance to Default (DD)**, and **Probability of Default (PD)**.
 ## Methodology
 
 - Market Value of Equity Estimation
