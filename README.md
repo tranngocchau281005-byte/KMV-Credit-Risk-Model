@@ -12,7 +12,6 @@ This project was completed as part of the **Financial Risk Management** course. 
 - Iterative Asset Volatility Calibration
 - Distance to Default (DD) Calculation
 - Probability of Default (PD) Estimation
-- Credit Risk Visualization
 ## Tools
 
 - R
