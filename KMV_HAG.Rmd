@@ -36,7 +36,7 @@ DPT <- 24331644642 * 1000 # Điểm vỡ nợ = Nợ ngắn hạn + 1/2 Nợ dà
 
 3. Đọc và xử lý dữ liệu
 ```{r}
-hag <- read.csv("C:/Users/Chau/OneDrive - THPT Nguyễn Công Trứ/Attachments/QTRRTC/Dữ liệu Lịch sử HAG.csv")
+hag <- read.csv("path to your dataset.csv")
 hagclose <- hag[,2]
 ```
 
