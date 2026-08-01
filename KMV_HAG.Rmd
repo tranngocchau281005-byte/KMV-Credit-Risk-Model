@@ -1,0 +1,190 @@
+---
+title: "KMV-Credit Risk Model"
+author: "Trần Ngọc Châu"
+date: "2026-06-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  warning = FALSE,   
+  message = FALSE,   
+  comment = NA       
+)
+```
+
+1. Ghi nhớ mã hoá ký hiệu 
+```{r}
+  ## V là giá trị thị trường cổ phiếu (vốn hóa)
+  ## A là giá trị tài sản doanh nghiệp (nội tại)
+  ## DPT là điểm vỡ nợ (nợ phải trả)
+  ## sigma_V: độ biến động của giá trị tài sản
+  ## sigma_A: độ biến động của tài sản nội tại
+  ## A0: giá trị tài sản tại thời điểm hiện tại
+```
+
+2. Khai báo các tham số mô hình
+```{r}
+r <- 0.0469               # Lãi suất phi rủi ro hàng năm
+T <- 1                    # Thời gian đáo hạn (1 năm)
+N.shares <- 789967947     # Số lượng cổ phiếu
+# STD = 
+# LTD = 
+# DPT = STD + 0.5 * LTD
+DPT <- 24331644642 * 1000 # Điểm vỡ nợ = Nợ ngắn hạn + 1/2 Nợ dài hạn
+```
+
+3. Đọc và xử lý dữ liệu
+```{r}
+hag <- read.csv("C:/Users/Chau/OneDrive - THPT Nguyễn Công Trứ/Attachments/QTRRTC/Dữ liệu Lịch sử HAG.csv")
+hagclose <- hag[,2]
+```
+
+4. Tính giá trị vốn hóa thị trường V(t)
+```{r}
+V <- hagclose * N.shares  # V = Giá cổ phiếu x số cổ phần
+```
+
+5. Tính độ biến động của V (sigma_V)
+```{r}
+V.returns <- diff(log(V))
+sigma_V <- sd(V.returns, na.rm = TRUE) * sqrt(252) # đổi sang năm
+```
+
+6.1. Hàm định giá quyền chọn mua theo Black-Scholes 
+```{r}
+BS_Call <- function(A, DPT, T, r, sigma) {
+  d1 <- (log(A / DPT) + (r + 0.5 * sigma^2) * T) / (sigma * sqrt(T))
+  d2 <- d1 - sigma * sqrt(T)
+  call_price <- A * pnorm(d1) - DPT * exp(-r * T) * pnorm(d2)
+  return(call_price)
+}
+```
+
+6.2. Hàm nội tại: giải phương trình V = C(A)
+```{r}
+HamNghiem <- function(A, Vt, r, sigma_A, DPT, T) {
+  Vt - BS_Call(A, DPT, T, r, sigma_A)
+} # nội suy
+```
+
+7. Khởi tạo giá trị ban đầu
+```{r}
+A <- numeric(length(V))
+sigma_A <- sigma_V
+```
+
+8. Ước lượng A ban đầu 
+```{r}
+for (i in 1:length(V)) {
+  tryCatch({
+    nghiem <- uniroot(HamNghiem, interval = c(V[i], 10 * V[i]),
+                      Vt = V[i], r = r, sigma_A = sigma_A, DPT = DPT, T = T)
+    A[i] <- nghiem$root
+  }, error = function(e) {
+    A[i] <- NA
+  })
+}
+```
+
+9. Tính lại sigma_A 
+```{r}
+calc_vol <- function(x) sd(diff(log(na.omit(x)))) * sqrt(252)
+sigma_A.old <- sigma_A
+sigma_A <- calc_vol(A)
+```
+
+10. Lặp cập nhật A và sigma_A đến khi hội tụ 
+```{r}
+it <- 1
+while (abs(sigma_A - sigma_A.old) / sigma_A.old > 0.000001) {
+  it <- it + 1
+  for (i in 1:length(V)) {
+    tryCatch({
+      nghiem <- uniroot(HamNghiem, interval = c(V[i], 10 * V[i]),
+                        Vt = V[i], r = r, sigma_A = sigma_A, DPT = DPT, T = T)
+      A[i] <- nghiem$root
+    }, error = function(e) {
+      A[i] <- NA
+    })
+  }
+  sigma_A.old <- sigma_A
+  sigma_A <- calc_vol(A)
+}
+```
+
+11. Tính Distance to Default (DD) và Xác suất vỡ nợ (PD) 
+```{r}
+A0 <- tail(na.omit(A), 1)
+DD <- (log(A0) - log(DPT)) / sigma_A
+PD <- pnorm(-DD)
+```
+
+12. In kết quả
+```{r}
+cat("----- KẾT QUẢ ƯỚC LƯỢNG MÔ HÌNH MERTON -----\n")
+cat("Số vòng lặp để hội tụ:", it, "\n")
+cat("Độ biến động sigma_A:", round(sigma_A, 6), "\n")
+cat("Giá trị tài sản doanh nghiệp A0:", round(A0, 0), "\n")
+cat("Distance to Default (DD):", round(DD, 4), "\n")
+cat("Xác suất vỡ nợ (PD):", round(PD, 6), "\n")
+```
+
+13. Vẽ đồ thị
+```{r}
+str(hag) # kiểm tra kiểu dữ liệu
+hag$date <- as.Date(hag$date, format = "%d/%m/%y") # đổi định dạng thời gian
+# Vẽ giá trị tài sản doanh nghiệp theo thời gian
+library(ggplot2)
+df_asset <- data.frame(Date = hag$date, Asset_Value = A / 1e9) # Chia giá trị tài sản cho tỷ đồng
+ggplot(df_asset, aes(x = Date, y = Asset_Value)) +
+  geom_line(color = "blue", size = 1) +
+  labs(title = "Giá trị tài sản doanh nghiệp (A) theo thời gian",
+       x = "Thời gian", y = "Giá trị tài sản (tỷ đồng)") +
+  scale_x_date(date_labels = "%b %Y", date_breaks = "2 months") +
+  theme_minimal() 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+# Vẽ giá trị VCSH theo thời gian
+df_equity <- data.frame(Date = hag$date, Equity_Value = V / 1e9)
+  
+ggplot(df_equity, aes(x = Date, y = Equity_Value)) +
+  geom_line(color = "darkgreen") +
+  labs(title = "Giá trị vốn chủ sở hữu (V) theo thời gian",
+       x = "Thời gian", y = "Equity Value (V)") +
+  scale_x_date(date_labels = "%b %Y", date_breaks = "2 months") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Vẽ thêm DD
+ggplot(df_asset, aes(x = Date, y = Asset_Value)) +
+  geom_line(color = "blue", size = 1) +
+  geom_hline(yintercept = DPT / 1e9, linetype = "dashed", color = "red") +  # DPT cũng chia tỷ đồng
+  geom_point(x = tail(hag$date, 1), y = tail(A, 1) / 1e9, color = "black", size = 3) +  # điểm cuối cùng
+  annotate("text", x = tail(hag$date, 1), y = tail(A, 1) / 1e9, 
+           label = paste0("DD = ", round(DD, 4)), vjust = -1) +
+  labs(title = "Giá trị tài sản & khoảng cách đến vỡ nợ",
+       x = "Thời gian", y = "Giá trị tài sản (tỷ đồng)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# kiểm tra thêm có những thời điểm nào khác vỡ nợ về mặt kỹ thuật hay không
+df_asset$Below_DPT <- df_asset$Asset_Value < (DPT / 1e9)
+subset(df_asset, Below_DPT) # nếu có thì mới vẽ đồ thị tiếp
+
+ggplot(df_asset, aes(x = Date, y = Asset_Value)) +
+  geom_line(color = "blue", size = 1) +
+  geom_hline(yintercept = DPT / 1e9, linetype = "dashed", color = "red") +
+  geom_point(data = subset(df_asset, Below_DPT),
+             aes(x = Date, y = Asset_Value), color = "red", size = 2) +
+  geom_point(x = tail(df_asset$Date, 1),
+             y = tail(df_asset$Asset_Value, 1), color = "black", size = 3) +
+  annotate("text", x = tail(df_asset$Date, 1),
+           y = tail(df_asset$Asset_Value, 1),
+           label = paste0("DD = ", round(DD, 4)), vjust = -1) +
+  labs(title = "Giá trị tài sản & cảnh báo rủi ro vỡ nợ",
+       x = "Thời gian", y = "Giá trị tài sản (tỷ đồng)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
